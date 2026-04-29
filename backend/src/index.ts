@@ -16,8 +16,19 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 const app = express();
 const port = Number(process.env.PORT || 3001);
 
+const FRONTEND_URL = process.env.FRONTEND_URL?.replace(/\/$/, '') ?? '';
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, mobile apps, same-origin)
+    if (!origin) return callback(null, true);
+    // Allow exact match of FRONTEND_URL
+    if (FRONTEND_URL && origin === FRONTEND_URL) return callback(null, true);
+    // Allow any vercel.app preview deployments for this project
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    // Allow localhost for local dev
+    if (origin.startsWith('http://localhost')) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
+  },
 }));
 // Increase limit to handle base64 image uploads for AI photo analysis
 app.use(express.json({ limit: '12mb' }));
