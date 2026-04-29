@@ -16,7 +16,9 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 const app = express();
 const port = Number(process.env.PORT || 3001);
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+}));
 // Increase limit to handle base64 image uploads for AI photo analysis
 app.use(express.json({ limit: '12mb' }));
 app.use('/api/health', healthRouter);
