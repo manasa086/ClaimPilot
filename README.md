@@ -6,6 +6,22 @@ AI-powered claim documentation assistant for rideshare and delivery drivers. Gui
 
 ---
 
+## Screenshots
+
+**Claims Dashboard** — live readiness scores for all claims at a glance
+
+![Claims Dashboard](docs/screenshots/01-dashboard-claims-list.png)
+
+**Individual Claim Overview** — readiness, missing items, evidence status, and AI risk flags
+
+![Claim Overview](docs/screenshots/02-claim-overview.png)
+
+**Full Incident Summary** — complete structured record with description, evidence checklist, and readiness score
+
+![Incident Summary Modal](docs/screenshots/03-incident-summary-modal.png)
+
+---
+
 ## Architecture
 
 ```
