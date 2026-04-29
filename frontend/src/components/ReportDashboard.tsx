@@ -92,12 +92,10 @@ function formatDate(dateString: string) {
 function getClaimDetails(report: IncidentReport) {
   return {
     claimId: report.id.startsWith('CP-') ? report.id : `CP-${report.id.slice(-6)}`,
-    date: report.createdAt ? formatDate(report.createdAt) : 'May 12, 2025 4:35 PM',
+    date: report.createdAt ? formatDate(report.createdAt) : '',
     location: report.location || '',
     incidentType: report.incidentType || '',
     vehicle: report.vehicle || '',
-    atFault: 'Other driver',
-    policy: 'State Farm · Policy # SF12345678',
     platform: report.platformStatus || '',
   };
 }
@@ -105,7 +103,6 @@ function getClaimDetails(report: IncidentReport) {
 function computeReportReadiness(
   report: IncidentReport,
   hasPhotos: boolean,
-  interviewAnswered: number,
 ) {
   const missingItems: string[] = [];
   if (!report.title?.trim()) missingItems.push('Incident title');
@@ -115,9 +112,9 @@ function computeReportReadiness(
   if (!report.incidentType?.trim()) missingItems.push('Incident type');
   if (!report.description?.trim()) missingItems.push('Incident description');
   if (!hasPhotos) missingItems.push('Photos / Evidence');
-  if (interviewAnswered < 3) missingItems.push('Interview questions');
-  // 8 items × 12 pts each = 96 pts max deduction
-  const readinessScore = Math.max(10, 100 - missingItems.length * 12);
+  const raw = Math.max(10, 100 - missingItems.length * 12);
+  // Without documents readiness is capped at 42%
+  const readinessScore = hasPhotos ? raw : Math.min(raw, 42);
   return { readinessScore, missingItems };
 }
 
@@ -264,8 +261,8 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
   const details = getClaimDetails(currentReport);
   const hasPhotos = Object.values(itemFiles).some((files) => files.length > 0);
   const readiness = useMemo(
-    () => computeReportReadiness(currentReport, hasPhotos, Object.keys(interviewAnswers).length),
-    [currentReport, hasPhotos, interviewAnswers], // eslint-disable-line react-hooks/exhaustive-deps
+    () => computeReportReadiness(currentReport, hasPhotos),
+    [currentReport, hasPhotos], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const riskFlags = useMemo(() => [
@@ -276,12 +273,12 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
 
   const sidebarBadges: Record<SectionId, string> = useMemo(() => ({
     Overview: '',
-    Interview: `${Object.keys(interviewAnswers).length}/${interviewQuestions.length}`,
+    Interview: `${Object.keys(interviewAnswers).length}/${interviewQuestions.length + aiQuestions.length}`,
     Evidence: `${evidenceStatus.filter((e) => e.status === 'Complete').length}/${evidenceStatus.length}`,
     Timeline: '4',
     'Claim Packet': `${readiness.readinessScore}%`,
     Review: readiness.missingItems.length > 0 ? `${readiness.missingItems.length} pending` : 'Ready',
-  }), [interviewAnswers, evidenceStatus, readiness]);
+  }), [interviewAnswers, evidenceStatus, readiness, aiQuestions]);
 
   const updateReportField = (field: keyof IncidentReport, value: string) => {
     setCurrentReport((prev) => ({ ...prev, [field]: value }));
@@ -359,7 +356,6 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
       details.incidentType && `Incident Type: ${details.incidentType}`,
       details.vehicle && `Vehicle: ${details.vehicle}`,
       details.platform && `Platform: ${details.platform}`,
-      details.atFault && `At Fault: ${details.atFault}`,
       currentReport.description && `Description: ${currentReport.description}`,
       evidenceStatus.filter((e) => e.status !== 'Missing').length > 0 &&
         `Evidence collected: ${evidenceStatus.filter((e) => e.status !== 'Missing').map((e) => e.label).join(', ')}`,
@@ -626,8 +622,6 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
   ${details.incidentType ? `<div class="field"><div class="label">Type of Incident</div><div class="value">${details.incidentType}</div></div>` : ''}
   ${details.vehicle ? `<div class="field"><div class="label">Vehicle</div><div class="value">${details.vehicle}</div></div>` : ''}
   ${details.platform ? `<div class="field"><div class="label">Platform / Trip Status</div><div class="value">${details.platform}</div></div>` : ''}
-  <div class="field"><div class="label">At Fault Party</div><div class="value">${details.atFault}</div></div>
-  <div class="field"><div class="label">Insurance Policy</div><div class="value">${details.policy}</div></div>
 </div>
 
 ${aiNarrative ? `
@@ -698,9 +692,8 @@ ${answeredQuestions.length > 0 ? `
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div><div style={{ fontWeight: 700 }}>Incident Type</div><div style={{ color: '#64748b', marginTop: 2 }}>{details.incidentType || <span style={{ color: '#dc2626' }}>Not set</span>}</div></div>
-              <div><div style={{ fontWeight: 700 }}>At Fault</div><div style={{ color: '#64748b', marginTop: 2 }}>{details.atFault}</div></div>
+              <div><div style={{ fontWeight: 700 }}>Platform</div><div style={{ color: '#64748b', marginTop: 2 }}>{details.platform || <span style={{ color: '#dc2626' }}>Not set</span>}</div></div>
             </div>
-            <div><div style={{ fontWeight: 700 }}>Policy</div><div style={{ color: '#64748b', marginTop: 2 }}>{details.policy}</div></div>
           </div>
         </div>
       </div>
@@ -1077,8 +1070,6 @@ ${answeredQuestions.length > 0 ? `
               ['Incident Type', details.incidentType || '—'],
               ['Vehicle', details.vehicle || '—'],
               ['Platform Status', details.platform || '—'],
-              ['At Fault Party', details.atFault],
-              ['Insurance Policy', details.policy],
             ].map(([label, value]) => (
               <div key={label}>
                 <div style={{ fontWeight: 700, color: '#475569', fontSize: '0.73rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
@@ -1403,8 +1394,6 @@ ${answeredQuestions.length > 0 ? `
                 <div><strong>Location</strong><div style={{ color: '#64748b', marginTop: 2 }}>{details.location || '—'}</div></div>
                 <div><strong>Incident Type</strong><div style={{ color: '#64748b', marginTop: 2 }}>{details.incidentType || '—'}</div></div>
                 <div><strong>Vehicle</strong><div style={{ color: '#64748b', marginTop: 2 }}>{details.vehicle || '—'}</div></div>
-                <div><strong>At Fault</strong><div style={{ color: '#64748b', marginTop: 2 }}>{details.atFault}</div></div>
-                <div><strong>Policy</strong><div style={{ color: '#64748b', marginTop: 2 }}>{details.policy}</div></div>
                 <div><strong>Platform</strong><div style={{ color: '#64748b', marginTop: 2 }}>{details.platform || '—'}</div></div>
               </div>
               <div>

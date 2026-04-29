@@ -74,7 +74,7 @@ export default function AppShell({ children, activeTab, onTabChange, authSession
               {!authSession && (
                 <button style={tabStyle('login')} onClick={() => onTabChange('login')}>Login</button>
               )}
-              <button style={tabStyle('claims')} onClick={() => onTabChange('claims')}>Demo</button>
+              <button style={tabStyle('claims')} onClick={() => onTabChange('claims')}>{authSession ? 'Dashboard' : 'Demo'}</button>
             </nav>
           </div>
 

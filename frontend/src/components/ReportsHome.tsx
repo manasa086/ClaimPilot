@@ -28,8 +28,10 @@ function computeReadiness(report: IncidentReport) {
   if (!report.incidentType?.trim()) missing.push('Incident type');
   if (!report.description?.trim()) missing.push('Incident description');
   if (!report.photoUrls?.length) missing.push('Photos / Evidence');
-  // 7 checkable items (interview not persisted) × 12 pts each
-  return { score: Math.max(10, 100 - missing.length * 12), missing };
+  const hasPhotos = (report.photoUrls?.length ?? 0) > 0;
+  const raw = Math.max(10, 100 - missing.length * 12);
+  // Without documents readiness is capped at 42%
+  return { score: hasPhotos ? raw : Math.min(raw, 42), missing };
 }
 
 export default function ReportsHome({ reports, onStartNewReport, onContinueReport, onDeleteReport, readonly }: ReportsHomeProps) {
