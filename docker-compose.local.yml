@@ -1,0 +1,33 @@
+# Overrides for local PostgreSQL development.
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+# This file:
+#   - Points the backend at the local db container instead of Supabase
+#   - Starts the db container (postgres:16-alpine) automatically
+#   - Uses docker/init.sql to create all tables on first boot
+
+version: '3.9'
+services:
+  backend:
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/claimpilot
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_DB=claimpilot
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
