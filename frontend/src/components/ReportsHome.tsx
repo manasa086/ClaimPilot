@@ -20,6 +20,15 @@ function readinessColor(score: number) {
 }
 
 function computeReadiness(report: IncidentReport) {
+  const coreFields = ['title', 'vehicle', 'platformStatus', 'location', 'incidentType', 'description'] as const;
+  const filledFields = coreFields.filter((f) => (report[f] as string | undefined)?.trim()).length;
+  const fieldScore = (filledFields / coreFields.length) * 25;
+
+  const hasPhotos = (report.photoUrls?.length ?? 0) > 0;
+  const evidenceScore = hasPhotos ? 60 : 0;
+
+  const score = Math.round(fieldScore + evidenceScore);
+
   const missing: string[] = [];
   if (!report.title?.trim()) missing.push('Incident title');
   if (!report.vehicle?.trim()) missing.push('Vehicle information');
@@ -27,11 +36,9 @@ function computeReadiness(report: IncidentReport) {
   if (!report.location?.trim()) missing.push('Incident location');
   if (!report.incidentType?.trim()) missing.push('Incident type');
   if (!report.description?.trim()) missing.push('Incident description');
-  if (!report.photoUrls?.length) missing.push('Photos / Evidence');
-  const hasPhotos = (report.photoUrls?.length ?? 0) > 0;
-  const raw = Math.max(10, 100 - missing.length * 12);
-  // Without documents readiness is capped at 42%
-  return { score: hasPhotos ? raw : Math.min(raw, 42), missing };
+  if (!hasPhotos) missing.push('Photos / Evidence');
+
+  return { score, missing };
 }
 
 export default function ReportsHome({ reports, onStartNewReport, onContinueReport, onDeleteReport, readonly }: ReportsHomeProps) {

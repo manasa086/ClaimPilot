@@ -36,6 +36,7 @@ export interface AiQuestion {
   id: string;
   question: string;
   impact: 'High' | 'Medium' | 'Low';
+  type?: 'yesno' | 'text';
 }
 
 export interface PhotoAnalysis {

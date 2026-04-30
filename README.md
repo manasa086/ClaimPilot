@@ -2,7 +2,8 @@
 
 AI-powered claim documentation assistant for rideshare and delivery drivers. Guides users through every step of documenting a vehicle incident — from plain-English description to a print-ready PDF packet.
 
-**Live production system:** https://railway.com/project/2447168d-3da2-4e4b-9562-bb566a803855/service/d013240c-475a-491b-bd7c-d92f23588593?environmentId=0da4939d-7d89-4c06-93cb-c4dd7f179ef6
+**Live app:** https://claimpilot.vercel.app  
+**Backend API:** https://claimpilot-wvhi.onrender.com
 
 ---
 
@@ -34,23 +35,27 @@ AI-powered claim documentation assistant for rideshare and delivery drivers. Gui
                        │ HTTPS  (VITE_API_BASE_URL)
 ┌──────────────────────▼──────────────────────────────────────┐
 │                    Backend API                              │
-│          Node.js + Express + TypeScript  — Railway          │
+│          Node.js + Express + TypeScript  — Render           │
 │                                                             │
-│  /api/auth          — login / verify / logout               │
-│  /api/reports       — authenticated CRUD (live claims)      │
-│  /api/demo/reports  — public read-only (dummy table)        │
-│  /api/ai            — AI autofill, narrative, photo scan    │
-└──────┬─────────────────────────────────┬────────────────────┘
-       │ pg (DATABASE_URL)               │ Anthropic SDK
-┌──────▼──────────────┐        ┌─────────▼──────────┐
-│     Supabase        │        │   Claude API        │
-│   PostgreSQL        │        │  (claude-opus-4-7)  │
-│                     │        └────────────────────-┘
-│  incident_reports   │
-│  incident_reports   │
-│    _dummy           │
-│  users              │
-│  sessions           │
+│  /api/auth               — login / verify / logout          │
+│  /api/auth/signup-request — request access (+ email admin)  │
+│  /api/auth/:id/approve   — approve user (+ mailto button)   │
+│  /api/auth/:id/reject    — reject request                   │
+│  /api/reports            — authenticated CRUD (per-user)    │
+│  /api/demo/reports       — public read-only (dummy table)   │
+│  /api/ai                 — AI autofill, narrative, photo scan│
+└──────┬──────────────────────────────┬───────────────────────┘
+       │ pg (DATABASE_URL)            │ Anthropic SDK + Resend
+┌──────▼──────────────┐     ┌─────────▼──────────┐
+│     Supabase        │     │  External Services  │
+│   PostgreSQL        │     │                     │
+│                     │     │  Claude API         │
+│  incident_reports   │     │  (claude-opus-4-7)  │
+│  incident_reports   │     │                     │
+│    _dummy           │     │  Resend             │
+│  users              │     │  (email via HTTPS)  │
+│  sessions           │     └─────────────────────┘
+│  signup_requests    │
 │                     │
 │  Supabase Storage   │
 │  (claim-photos)     │
@@ -61,11 +66,25 @@ AI-powered claim documentation assistant for rideshare and delivery drivers. Gui
 
 | Decision | Reason |
 |---|---|
-| Single-user auth via `users` table + pgcrypto | Simple, no third-party auth dependency |
+| Per-user data isolation via `user_id` | Each user only sees their own claims; filtered on every DB query |
+| `signup_requests` table + admin email flow | Self-serve access requests — admin approves/rejects via email links |
+| Resend over SMTP (nodemailer) | Cloud platforms (Railway, Render) block outbound SMTP ports; Resend uses HTTPS |
 | `incident_reports_dummy` separate table | Public demo data is isolated — live claims never exposed unauthenticated |
-| Supabase Storage for photos | Signed URLs with long TTL survive server restarts; base64 URLs sent to Claude for AI analysis |
+| Supabase Storage for photos | Signed URLs with long TTL survive server restarts; base64 sent to Claude for AI analysis |
 | `AI_PROVIDER` env var | Swap between Claude and OpenAI without code changes |
 | Docker Compose override file for local postgres | One command switches between Supabase and local DB |
+| `requireAuth` middleware on `/api/reports` | Session validated on every request; `user_id` injected from session |
+
+---
+
+## User access flow
+
+1. New user visits the app → clicks **Request access** on the Login page
+2. Fills in email, password, and reason → submitted to `signup_requests` table
+3. Admin receives an email (via Resend) with **Approve** / **Reject** buttons
+4. **Approve** → user added to `users` table, admin gets a mailto button to notify user
+5. **Reject** → request marked rejected, record retained in DB
+6. User can now sign in with their email + password
 
 ---
 
@@ -78,11 +97,8 @@ AI-powered claim documentation assistant for rideshare and delivery drivers. Gui
 ### Option A — Supabase (cloud database, recommended)
 
 ```bash
-# Clone the repo
 git clone https://github.com/manasa086/ClaimPilot.git
 cd ClaimPilot
-
-# Start frontend + backend (points at Supabase)
 docker-compose up --build
 ```
 
@@ -96,9 +112,9 @@ docker-compose -f docker-compose.yml -f docker-compose.local.yml up --build
 
 - Starts a `postgres:16` container automatically
 - `docker/init.sql` creates all tables on first boot
-- Login uses `AUTH_USERNAME` / `AUTH_PASSWORD` from `.env` (env-var fallback, no DB seed needed)
+- Login uses `AUTH_USERNAME` / `AUTH_PASSWORD` from `.env` (env-var fallback)
 
-To reset the local database from scratch:
+To reset the local database:
 ```bash
 docker-compose down -v
 docker-compose -f docker-compose.yml -f docker-compose.local.yml up --build
@@ -107,11 +123,8 @@ docker-compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ### Stopping
 
 ```bash
-# Stop containers (keep data)
-docker-compose down
-
-# Stop and wipe local postgres data
-docker-compose down -v
+docker-compose down        # stop, keep data
+docker-compose down -v     # stop and wipe local postgres
 ```
 
 ---
@@ -122,7 +135,7 @@ All variables live in `.env` at the project root.
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `VITE_API_BASE_URL` | Frontend | Backend URL (http://localhost:3001 locally) |
+| `VITE_API_BASE_URL` | Frontend | Backend URL (`http://localhost:3001` locally) |
 | `VITE_SUPABASE_URL` | Frontend | Supabase project URL (photo uploads) |
 | `VITE_SUPABASE_ANON_KEY` | Frontend | Supabase anon key |
 | `VITE_AI_PROVIDER` | Frontend | Badge display (`claude` or `openai`) |
@@ -131,9 +144,12 @@ All variables live in `.env` at the project root.
 | `OPENAI_API_KEY` | Backend | OpenAI API key (if using OpenAI) |
 | `DATABASE_URL` | Backend | PostgreSQL connection string |
 | `SUPABASE_SERVICE_ROLE_KEY` | Backend | Supabase service role (storage ops) |
-| `AUTH_USERNAME` | Backend | Login username |
-| `AUTH_PASSWORD` | Backend | Login password |
+| `AUTH_USERNAME` | Backend | Fallback login username (local dev) |
+| `AUTH_PASSWORD` | Backend | Fallback login password (local dev) |
 | `FRONTEND_URL` | Backend | Allowed CORS origin |
+| `BACKEND_URL` | Backend | Public backend URL (used in email approve/reject links) |
+| `RESEND_API_KEY` | Backend | Resend API key for email sending |
+| `ADMIN_EMAIL` | Backend | Email address that receives access request notifications |
 
 ---
 
@@ -143,15 +159,16 @@ All variables live in `.env` at the project root.
 ClaimPilot/
 ├── frontend/               # Vite + React + TypeScript
 │   └── src/
-│       ├── pages/          # LandingPage, LoginPage
+│       ├── pages/          # LandingPage, LoginPage (with signup modal)
 │       ├── components/     # AppShell, ReportDashboard, ReportsHome, …
-│       └── utils/          # auth.ts, ai.ts, supabase.ts
+│       └── utils/          # auth.ts, apiFetch.ts, ai.ts, supabase.ts
 ├── backend/                # Node.js + Express + TypeScript
 │   └── src/
 │       ├── routes/         # auth, reports, demo, ai, health
-│       └── services/       # claudeClient, openaiClient, aiProvider
+│       ├── middleware/     # requireAuth.ts (session validation)
+│       └── services/       # claudeClient, openaiClient, aiProvider, emailService
 ├── docker/
-│   └── init.sql            # Schema for local PostgreSQL
+│   └── init.sql            # Schema for local PostgreSQL (all tables)
 ├── docker-compose.yml          # Default (Supabase)
 ├── docker-compose.local.yml    # Override for local PostgreSQL
 ├── dev-cloud.sh                # Shortcut: docker-compose up (Supabase)
@@ -160,16 +177,38 @@ ClaimPilot/
 
 ---
 
+## Database schema
+
+| Table | Purpose |
+|---|---|
+| `users` | Authorized users — username + bcrypt password hash |
+| `sessions` | Active login sessions with expiry |
+| `signup_requests` | Access requests from the login page (pending / approved / rejected) |
+| `incident_reports` | Live claim data — scoped per `user_id` |
+| `incident_reports_dummy` | Read-only demo data — public, never written to by the app |
+
+---
+
 ## Deployment
 
 | Service | Platform | Notes |
 |---|---|---|
 | Frontend | Vercel | Auto-deploys on `git push` to main |
-| Backend | Railway | Dockerfile-based, auto-deploys on push |
+| Backend | Render | Dockerfile-based, auto-deploys on push; free tier spins down after 15 min idle |
 | Database | Supabase | Managed PostgreSQL + Storage |
+| Email | Resend | HTTP-based (no SMTP); free tier 3,000 emails/month |
 
 ### Adding a new env var
 1. Add to `.env` locally
-2. Add to Railway → Variables (backend vars)
-3. Add to Vercel → Settings → Environment Variables (VITE_ prefix vars only)
+2. Add to Render → Environment (backend vars)
+3. Add to Vercel → Settings → Environment Variables (`VITE_` prefix vars only)
 4. Redeploy both services
+
+### Managing user access
+- **Grant access:** approve via email link → user added to `users` table
+- **Revoke access:** run in Supabase SQL Editor:
+```sql
+DELETE FROM users WHERE LOWER(username) = 'user@email.com';
+DELETE FROM sessions WHERE user_name = 'user@email.com';
+DELETE FROM incident_reports WHERE user_id = 'user@email.com';
+```

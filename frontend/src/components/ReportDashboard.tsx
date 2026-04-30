@@ -103,8 +103,22 @@ function getClaimDetails(report: IncidentReport) {
 
 function computeReportReadiness(
   report: IncidentReport,
-  hasPhotos: boolean,
+  evidenceStatus: EvidenceItem[],
+  interviewAnswers: Record<string, string>,
+  totalQuestions: number,
 ) {
+  const coreFields: (keyof IncidentReport)[] = ['title', 'vehicle', 'platformStatus', 'location', 'incidentType', 'description'];
+  const filledFields = coreFields.filter((f) => (report[f] as string | undefined)?.trim()).length;
+  const fieldScore = (filledFields / coreFields.length) * 25;
+
+  const completeEvidence = evidenceStatus.filter((e) => e.status === 'Complete').length;
+  const evidenceScore = evidenceStatus.length > 0 ? (completeEvidence / evidenceStatus.length) * 60 : 0;
+
+  const answeredCount = Object.keys(interviewAnswers).length;
+  const interviewScore = totalQuestions > 0 ? Math.min(answeredCount / totalQuestions, 1) * 15 : 0;
+
+  const readinessScore = Math.round(fieldScore + evidenceScore + interviewScore);
+
   const missingItems: string[] = [];
   if (!report.title?.trim()) missingItems.push('Incident title');
   if (!report.vehicle?.trim()) missingItems.push('Vehicle information');
@@ -112,10 +126,8 @@ function computeReportReadiness(
   if (!report.location?.trim()) missingItems.push('Incident location');
   if (!report.incidentType?.trim()) missingItems.push('Incident type');
   if (!report.description?.trim()) missingItems.push('Incident description');
-  if (!hasPhotos) missingItems.push('Photos / Evidence');
-  const raw = Math.max(10, 100 - missingItems.length * 12);
-  // Without documents readiness is capped at 42%
-  const readinessScore = hasPhotos ? raw : Math.min(raw, 42);
+  if (evidenceStatus.every((e) => e.status === 'Missing')) missingItems.push('Supporting evidence');
+
   return { readinessScore, missingItems };
 }
 
@@ -223,7 +235,7 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState<SectionId>('Overview');
   const [evidenceStatus, setEvidenceStatus] = useState<EvidenceItem[]>(defaultEvidence);
-  const [isViewOnly, setIsViewOnly] = useState(report.status === 'Completed' || !!readonly);
+  const isViewOnly = currentReport.status === 'Completed' || !!readonly;
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [interviewAnswers, setInterviewAnswers] = useState<Record<string, string>>({});
   const [activityExpanded, setActivityExpanded] = useState(false);
@@ -254,16 +266,15 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
   const [rewriteLoading, setRewriteLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => {
-    setCurrentReport(report);
-    setIsViewOnly(report.status === 'Completed' || !!readonly);
-  }, [report, readonly]);
-
   const details = getClaimDetails(currentReport);
-  const hasPhotos = Object.values(itemFiles).some((files) => files.length > 0);
   const readiness = useMemo(
-    () => computeReportReadiness(currentReport, hasPhotos),
-    [currentReport, hasPhotos], // eslint-disable-line react-hooks/exhaustive-deps
+    () => computeReportReadiness(
+      currentReport,
+      evidenceStatus,
+      interviewAnswers,
+      interviewQuestions.length + aiQuestions.length,
+    ),
+    [currentReport, evidenceStatus, interviewAnswers, aiQuestions.length], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const riskFlags = useMemo(() => [
@@ -378,10 +389,10 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
     setInconsistencyLoading(false);
   };
 
-  // Auto-load AI questions when Interview tab is first visited
+  // Auto-load AI questions on mount
   useEffect(() => {
-    if (activeSection === 'Interview') handleLoadAiQuestions();
-  }, [activeSection]); // eslint-disable-line react-hooks/exhaustive-deps
+    handleLoadAiQuestions();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Restore photos from Supabase when dashboard opens ────────────────────
   useEffect(() => {
@@ -542,7 +553,6 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
         const data = await response.json();
         setCurrentReport(data.data);
         onReportUpdated(data.data);
-        setIsViewOnly(true);
         setDraftStatus('Claim completed');
       }
     } catch { /* ignore */ }
@@ -817,6 +827,69 @@ ${answeredQuestions.length > 0 ? `
     [aiQuestions],
   );
 
+  const renderInterviewQuestion = (q: typeof allInterviewQuestions[0]) => {
+    const isAi = q.id.startsWith('ai_');
+    const qType = (q as { type?: 'yesno' | 'text' }).type;
+    const answered = !!interviewAnswers[q.id]?.trim();
+
+    if (isAi && qType === 'text') {
+      return (
+        <textarea
+          value={interviewAnswers[q.id] || ''}
+          onChange={(e) => setInterviewAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+          disabled={isViewOnly}
+          placeholder="Type your answer here…"
+          rows={2}
+          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #cbd5e1', fontSize: '0.84rem', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, outline: 'none', boxSizing: 'border-box', background: isViewOnly ? '#f8fafc' : '#fff' }}
+        />
+      );
+    }
+
+    const buttons = isAi && qType === 'yesno' ? ['Yes', 'No'] : answerOptions;
+
+    return (
+      <div style={{ display: 'grid', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {buttons.map((option) => (
+            <button
+              key={option}
+              type="button"
+              disabled={isViewOnly}
+              onClick={() => setInterviewAnswers((prev) => ({ ...prev, [q.id]: option }))}
+              style={{
+                background: interviewAnswers[q.id] === option ? '#2563eb' : '#fff',
+                color: interviewAnswers[q.id] === option ? '#fff' : '#0f172a',
+                border: '1px solid #cbd5e1',
+                borderRadius: 8,
+                padding: '7px 16px',
+                cursor: isViewOnly ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+                fontSize: '0.82rem',
+              }}
+            >
+              {option}
+            </button>
+          ))}
+          {answered && (
+            <button type="button" disabled={isViewOnly} onClick={() => setInterviewAnswers((prev) => { const n = { ...prev }; delete n[q.id]; return n; })} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.77rem', padding: '7px 6px' }}>
+              Clear
+            </button>
+          )}
+        </div>
+        {!isAi && (
+          <input
+            type="text"
+            value={typeof interviewAnswers[q.id] === 'string' && !buttons.includes(interviewAnswers[q.id]) ? interviewAnswers[q.id] : ''}
+            onChange={(e) => setInterviewAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+            disabled={isViewOnly}
+            placeholder="Or type your own answer…"
+            style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', background: isViewOnly ? '#f8fafc' : '#fff' }}
+          />
+        )}
+      </div>
+    );
+  };
+
   const renderInterview = () => (
     <div style={{ display: 'grid', gap: '12px' }}>
       <div className="card" style={{ padding: '18px', borderRadius: 16 }}>
@@ -824,9 +897,12 @@ ${answeredQuestions.length > 0 ? `
           <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>Incident Interview</p>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '0.83rem', color: '#64748b' }}>{Object.keys(interviewAnswers).length} of {allInterviewQuestions.length} answered</span>
-            {!aiQuestionsLoaded && (
-              <button type="button" onClick={handleLoadAiQuestions} disabled={aiQuestionsLoading} style={{ background: '#7c3aed', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 600, padding: '4px 10px', cursor: aiQuestionsLoading ? 'wait' : 'pointer', fontSize: '0.75rem' }}>
-                {aiQuestionsLoading ? 'Loading…' : 'Load AI questions'}
+            {aiQuestionsLoading && (
+              <span style={{ fontSize: '0.75rem', color: '#7c3aed' }}>Loading AI questions…</span>
+            )}
+            {!aiQuestionsLoaded && !aiQuestionsLoading && (
+              <button type="button" onClick={handleLoadAiQuestions} style={{ background: '#7c3aed', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 600, padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem' }}>
+                Retry AI questions
               </button>
             )}
           </div>
@@ -849,33 +925,7 @@ ${answeredQuestions.length > 0 ? `
                 </div>
                 {impactBadge(q.impact)}
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {answerOptions.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    disabled={isViewOnly}
-                    onClick={() => setInterviewAnswers((prev) => ({ ...prev, [q.id]: option }))}
-                    style={{
-                      background: interviewAnswers[q.id] === option ? '#2563eb' : '#fff',
-                      color: interviewAnswers[q.id] === option ? '#fff' : '#0f172a',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: 8,
-                      padding: '7px 16px',
-                      cursor: isViewOnly ? 'not-allowed' : 'pointer',
-                      fontWeight: 600,
-                      fontSize: '0.82rem',
-                    }}
-                  >
-                    {option}
-                  </button>
-                ))}
-                {interviewAnswers[q.id] && (
-                  <button type="button" disabled={isViewOnly} onClick={() => setInterviewAnswers((prev) => { const n = { ...prev }; delete n[q.id]; return n; })} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.77rem', padding: '7px 6px' }}>
-                    Clear
-                  </button>
-                )}
-              </div>
+              {renderInterviewQuestion(q)}
             </div>
           ))}
         </div>
@@ -982,12 +1032,58 @@ ${answeredQuestions.length > 0 ? `
   );
 
   const renderTimeline = () => {
-    const events = [
-      { date: details.date, title: 'Claim created', desc: `Incident report opened for ${details.incidentType || 'incident'}.`, color: '#2563eb' },
-      { date: 'May 13, 2025', title: 'Evidence uploaded', desc: "Driver's License and Insurance Card added.", color: '#16a34a' },
-      { date: 'May 14, 2025', title: 'Vehicle photos added', desc: '6 photos of vehicle damage uploaded.', color: '#16a34a' },
-      { date: 'May 15, 2025 · Recent', title: 'Interview answered', desc: 'Responded to "What happened?" question.', color: '#d97706' },
-    ];
+    const events: { date: string; title: string; desc: string; color: string }[] = [];
+
+    events.push({
+      date: currentReport.createdAt ? formatDate(currentReport.createdAt) : '—',
+      title: 'Claim created',
+      desc: `Incident report opened${details.incidentType ? ` for ${details.incidentType}` : ''}.`,
+      color: '#2563eb',
+    });
+
+    const coreFields: (keyof IncidentReport)[] = ['title', 'vehicle', 'platformStatus', 'location', 'incidentType', 'description'];
+    const allFieldsFilled = coreFields.every((f) => (currentReport[f] as string | undefined)?.trim());
+    if (allFieldsFilled) {
+      events.push({
+        date: currentReport.updatedAt ? formatDate(currentReport.updatedAt) : '—',
+        title: 'All fields completed',
+        desc: 'Title, vehicle, platform, location, incident type, and description all filled.',
+        color: '#16a34a',
+      });
+    }
+
+    const uploadedLabels = Object.entries(itemFiles)
+      .filter(([, files]) => files.length > 0)
+      .map(([label]) => label);
+    if (uploadedLabels.length > 0) {
+      const totalFiles = Object.values(itemFiles).flat().length;
+      events.push({
+        date: currentReport.updatedAt ? formatDate(currentReport.updatedAt) : '—',
+        title: 'Evidence uploaded',
+        desc: `${totalFiles} file${totalFiles !== 1 ? 's' : ''} added: ${uploadedLabels.join(', ')}.`,
+        color: '#16a34a',
+      });
+    }
+
+    const answeredCount = Object.keys(interviewAnswers).length;
+    if (answeredCount > 0) {
+      const totalQ = interviewQuestions.length + aiQuestions.length;
+      events.push({
+        date: currentReport.updatedAt ? formatDate(currentReport.updatedAt) : '—',
+        title: 'Interview questions answered',
+        desc: `Answered ${answeredCount} of ${totalQ} question${totalQ !== 1 ? 's' : ''}.`,
+        color: '#d97706',
+      });
+    }
+
+    if (events.length === 1) {
+      events.push({
+        date: '—',
+        title: 'Fill in claim details',
+        desc: 'Add vehicle info, location, evidence, and answer interview questions to build your timeline.',
+        color: '#94a3b8',
+      });
+    }
     return (
       <div className="card" style={{ padding: '18px', borderRadius: 16 }}>
         <p style={{ margin: '0 0 18px', fontWeight: 700, fontSize: '0.95rem' }}>Claim Timeline</p>

@@ -124,13 +124,14 @@ export interface AiQuestion {
   id: string;
   question: string;
   impact: 'High' | 'Medium' | 'Low';
+  type: 'yesno' | 'text';
 }
 
 const fallbackQuestions: AiQuestion[] = [
-  { id: 'ai_1', question: 'Were there any traffic signals or signs relevant to the incident?', impact: 'Medium' },
-  { id: 'ai_2', question: 'Did you exchange contact information with the other driver?', impact: 'High' },
-  { id: 'ai_3', question: 'Was the vehicle driveable after the incident?', impact: 'Low' },
-  { id: 'ai_4', question: 'Were there any road or weather conditions that contributed?', impact: 'Medium' },
+  { id: 'ai_1', question: 'Were there any traffic signals or signs relevant to the incident?', impact: 'Medium', type: 'yesno' },
+  { id: 'ai_2', question: 'Did you exchange contact information with the other driver?', impact: 'High', type: 'yesno' },
+  { id: 'ai_3', question: 'Was the vehicle driveable after the incident?', impact: 'Low', type: 'yesno' },
+  { id: 'ai_4', question: 'Describe any road or weather conditions that may have contributed to the incident.', impact: 'Medium', type: 'text' },
 ];
 
 export function generateInterviewQuestions(reportContext: string) {
@@ -141,14 +142,18 @@ export function generateInterviewQuestions(reportContext: string) {
       system: [
         {
           type: 'text',
-          text: 'You are a claims investigator. Generate 4 specific follow-up interview questions for this incident that would strengthen an insurance claim. Return ONLY valid JSON: {"questions": [{"id": "ai_1", "question": "...", "impact": "High|Medium|Low"}]}',
+          text: 'You are a claims investigator. Generate 4 specific follow-up interview questions for this incident that would strengthen an insurance claim. For each question, set "type" to "yesno" if it can be answered with yes or no, or "text" if it requires a descriptive answer. Return ONLY valid JSON: {"questions": [{"id": "ai_1", "question": "...", "impact": "High|Medium|Low", "type": "yesno|text"}]}',
           cache_control: { type: 'ephemeral' },
         },
       ],
       messages: [{ role: 'user', content: `Incident context:\n${reportContext}` }],
     });
     const parsed = parseJson<{ questions?: AiQuestion[] }>(extractText(msg), {});
-    return parsed.questions ?? fallbackQuestions;
+    return (parsed.questions ?? fallbackQuestions).map((q, i) => ({
+      ...q,
+      id: q.id || `ai_${i + 1}`,
+      type: q.type === 'text' ? 'text' : 'yesno',
+    })) as AiQuestion[];
   }, fallbackQuestions);
 }
 
