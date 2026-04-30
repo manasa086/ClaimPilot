@@ -49,10 +49,12 @@ export default function AppShell({ children, activeTab, onTabChange, authSession
     ? authSession.userName.slice(0, 2).toUpperCase()
     : '';
 
+  const isLanding = activeTab === 'landing';
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fbff', color: '#0f172a' }}>
-      <header style={{ background: '#071b2e', padding: '12px 0', color: '#fff' }}>
-        <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+      <header style={{ background: '#071b2e', padding: '12px 32px', color: '#fff' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
           {/* Logo + nav tabs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -60,7 +62,7 @@ export default function AppShell({ children, activeTab, onTabChange, authSession
                 <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>C</span>
               </div>
               <div>
-                <div style={{ fontSize: '1rem', fontWeight: 700 }}>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
                   ClaimPilot
                 </div>
                 <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Claims intelligence for accident recovery</div>
@@ -113,7 +115,9 @@ export default function AppShell({ children, activeTab, onTabChange, authSession
           </div>
         </div>
       </header>
-      <main className="container" style={{ padding: '20px 0 32px' }}>{children}</main>
+      <main style={isLanding ? {} : { padding: '20px 32px 32px' }}>
+        {children}
+      </main>
     </div>
   );
 }

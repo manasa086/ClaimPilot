@@ -1,7 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 COPY . .
 # Vite bakes env vars at build time — pass them as build args
 ARG VITE_API_BASE_URL

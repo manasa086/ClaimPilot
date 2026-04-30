@@ -3,7 +3,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - '5173:5173'
     environment:
@@ -14,12 +14,11 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev  # overrides the production Dockerfile CMD for local dev
 
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - '3001:3001'
     environment:
@@ -35,7 +34,6 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    command: npm run dev  # overrides the production Dockerfile CMD for local dev
 
 volumes:
   db-data:
