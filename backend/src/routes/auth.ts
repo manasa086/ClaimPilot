@@ -7,6 +7,17 @@ const router = express.Router();
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+// Temporary debug endpoint — remove after email is confirmed working
+router.get('/test-email', async (_req, res) => {
+  try {
+    await sendApprovalEmail(process.env.ADMIN_EMAIL ?? 'manasa.somisetty12@gmail.com');
+    res.json({ success: true, message: 'Test email sent — check your inbox.' });
+  } catch (err) {
+    const msg = (err as any)?.message ?? 'Unknown error';
+    res.status(500).json({ success: false, error: msg });
+  }
+});
+
 // In-memory session cache — also written to DB when available
 const memorySessions = new Map<string, { userName: string; expiresAt: number }>();
 
