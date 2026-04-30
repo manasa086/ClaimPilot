@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IncidentReport } from '../types/incident';
 import { aiApi, type AiQuestion, type PhotoAnalysis, type Inconsistency } from '../utils/ai';
 import { uploadPhoto, deletePhoto, fetchAsDataUrl, storageConfigured } from '../utils/supabase';
+import { apiFetch } from '../utils/apiFetch';
 
 interface ReportDashboardProps {
   report: IncidentReport;
@@ -445,9 +446,8 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
   const patchPhotoUrls = async (files: Record<string, UploadedFile[]>) => {
     const photoUrls = buildPhotoUrls(files);
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/reports/${currentReport.id}`, {
+      await apiFetch(`/api/reports/${currentReport.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ photoUrls }),
       });
     } catch { /* ignore — photos are uploaded, URL persistence is best-effort */ }
@@ -517,9 +517,8 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
     if (!currentReport.id) return;
     setSaving(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/reports/${currentReport.id}`, {
+      const response = await apiFetch(`/api/reports/${currentReport.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...currentReport, status: currentReport.status || 'Draft' }),
       });
       if (response.ok) {
@@ -535,9 +534,8 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
   const handleFinishClaim = async () => {
     setSaving(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/reports/${currentReport.id}`, {
+      const response = await apiFetch(`/api/reports/${currentReport.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...currentReport, status: 'Completed' }),
       });
       if (response.ok) {

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { IncidentReport } from '../types/incident';
 import { aiApi } from '../utils/ai';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+import { apiFetch } from '../utils/apiFetch';
 
 interface NewReportFormProps {
   onReportCreated: (report: IncidentReport) => void;
@@ -70,9 +69,8 @@ export default function NewReportForm({ onReportCreated, onCancel }: NewReportFo
     if (!formData.title.trim()) return;
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/reports`, {
+      const response = await apiFetch('/api/reports', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: `CP-${Date.now()}`,
           ...formData,

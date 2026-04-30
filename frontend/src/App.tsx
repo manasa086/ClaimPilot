@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import type { IncidentReport } from './types/incident';
 import { getStoredSession, verifySession, logout } from './utils/auth';
 import type { AuthSession } from './utils/auth';
+import { apiFetch } from './utils/apiFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
@@ -16,7 +17,7 @@ type ClaimsView = 'reports' | 'new-report' | 'dashboard';
 
 async function fetchFromApi(path: string): Promise<IncidentReport[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}${path}`);
+    const res = await apiFetch(path);
     if (!res.ok) return [];
     const data = await res.json();
     return data.data || [];
@@ -132,7 +133,7 @@ function App() {
 
   const handleDeleteReport = async (reportId: string) => {
     try {
-      await fetch(`${API_BASE_URL}/api/reports/${reportId}`, { method: 'DELETE' });
+      await apiFetch(`/api/reports/${reportId}`, { method: 'DELETE' });
     } catch { /* remove from UI regardless */ }
     setReports((prev) => prev.filter((r) => r.id !== reportId));
     if (selectedReport?.id === reportId) {
