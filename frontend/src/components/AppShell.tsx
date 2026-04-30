@@ -60,9 +60,8 @@ export default function AppShell({ children, activeTab, onTabChange, authSession
                 <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>C</span>
               </div>
               <div>
-                <div style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: '1rem', fontWeight: 700 }}>
                   ClaimPilot
-                  <AiProviderBadge />
                 </div>
                 <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Claims intelligence for accident recovery</div>
               </div>
