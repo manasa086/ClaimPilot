@@ -64,8 +64,8 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
           </h1>
 
           <p style={{ margin: '0 0 22px', color: '#94a3b8', fontSize: '0.92rem', lineHeight: 1.65 }}>
-            ClaimPilot guides you through every step of documenting a vehicle incident —
-            from first description to final PDF — using AI to fill in the blanks and flag what's missing.
+            ClaimPilot guides you through every step of documenting a vehicle incident 
+            from first description to final PDF using AI to fill in the blanks and flag what's missing.
           </p>
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
