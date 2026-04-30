@@ -21,4 +21,6 @@ export interface IncidentReport {
   incidentType?: string;
   description?: string;
   photoUrls?: StoredPhoto[];
+  interviewAnswers?: Record<string, string>;
+  aiQuestions?: import('../utils/ai').AiQuestion[];
 }

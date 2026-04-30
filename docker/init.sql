@@ -40,11 +40,13 @@ CREATE TABLE IF NOT EXISTS incident_reports (
   incident_type    TEXT,
   vehicle          TEXT,
   description      TEXT,
-  readiness_score  INTEGER DEFAULT 0,
-  missing_items    TEXT[] DEFAULT '{}',
-  photo_urls       JSONB DEFAULT '[]'::jsonb,
-  created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  readiness_score    INTEGER DEFAULT 0,
+  missing_items      TEXT[] DEFAULT '{}',
+  photo_urls         JSONB DEFAULT '[]'::jsonb,
+  interview_answers  JSONB DEFAULT '{}'::jsonb,
+  ai_questions       JSONB DEFAULT '[]'::jsonb,
+  created_at         TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at         TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- ── Demo/public reports (read-only via /api/demo/reports) ─────────────────────

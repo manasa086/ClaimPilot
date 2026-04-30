@@ -23,13 +23,16 @@ function rowToReport(row: any): IncidentReport {
     readinessScore: row.readiness_score ?? 0,
     missingItems: row.missing_items ?? [],
     photoUrls: row.photo_urls ?? [],
+    interviewAnswers: row.interview_answers ?? {},
+    aiQuestions: row.ai_questions ?? [],
   };
 }
 
 router.get('/', async (req: AuthRequest, res) => {
   const result = await pool!.query(
     `SELECT id, title, status, created_at, updated_at, vehicle, platform_status,
-            incident_type, location, description, readiness_score, missing_items, photo_urls
+            incident_type, location, description, readiness_score, missing_items,
+            photo_urls, interview_answers, ai_questions
      FROM incident_reports WHERE user_id = $1 ORDER BY updated_at DESC`,
     [req.userName],
   );
@@ -55,14 +58,17 @@ router.post('/', async (req: AuthRequest, res) => {
   await pool!.query(
     `INSERT INTO incident_reports
        (id, user_id, title, status, vehicle, platform_status, incident_type,
-        location, description, readiness_score, missing_items, photo_urls, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())`,
+        location, description, readiness_score, missing_items, photo_urls,
+        interview_answers, ai_questions, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),NOW())`,
     [
       newReport.id, req.userName, newReport.title, newReport.status,
       newReport.vehicle ?? null, newReport.platformStatus ?? null,
       newReport.incidentType ?? null, newReport.location ?? null,
       newReport.description ?? null, newReport.readinessScore,
-      newReport.missingItems, JSON.stringify(newReport.photoUrls),
+      newReport.missingItems, JSON.stringify(newReport.photoUrls ?? []),
+      JSON.stringify(newReport.interviewAnswers ?? {}),
+      JSON.stringify(newReport.aiQuestions ?? []),
     ],
   );
 
@@ -75,7 +81,8 @@ router.patch('/:id', async (req: AuthRequest, res) => {
 
   const result = await pool!.query(
     `SELECT id, title, status, created_at, updated_at, vehicle, platform_status,
-            incident_type, location, description, readiness_score, missing_items, photo_urls
+            incident_type, location, description, readiness_score, missing_items,
+            photo_urls, interview_answers, ai_questions
      FROM incident_reports WHERE id = $1 AND user_id = $2`,
     [id, req.userName],
   );
@@ -96,14 +103,16 @@ router.patch('/:id', async (req: AuthRequest, res) => {
     `UPDATE incident_reports
      SET title=$1, status=$2, vehicle=$3, platform_status=$4, incident_type=$5,
          location=$6, description=$7, readiness_score=$8, missing_items=$9,
-         photo_urls=$10, updated_at=NOW()
-     WHERE id=$11 AND user_id=$12`,
+         photo_urls=$10, interview_answers=$11, ai_questions=$12, updated_at=NOW()
+     WHERE id=$13 AND user_id=$14`,
     [
       updatedReport.title, updatedReport.status,
       updatedReport.vehicle ?? null, updatedReport.platformStatus ?? null,
       updatedReport.incidentType ?? null, updatedReport.location ?? null,
       updatedReport.description ?? null, updatedReport.readinessScore,
       updatedReport.missingItems, JSON.stringify(updatedReport.photoUrls ?? []),
+      JSON.stringify(updatedReport.interviewAnswers ?? {}),
+      JSON.stringify(updatedReport.aiQuestions ?? []),
       id, req.userName,
     ],
   );

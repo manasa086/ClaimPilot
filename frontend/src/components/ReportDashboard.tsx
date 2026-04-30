@@ -237,7 +237,7 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
   const [evidenceStatus, setEvidenceStatus] = useState<EvidenceItem[]>(defaultEvidence);
   const isViewOnly = currentReport.status === 'Completed' || !!readonly;
   const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [interviewAnswers, setInterviewAnswers] = useState<Record<string, string>>({});
+  const [interviewAnswers, setInterviewAnswers] = useState<Record<string, string>>(report.interviewAnswers ?? {});
   const [activityExpanded, setActivityExpanded] = useState(false);
 
   // Resolve modal
@@ -248,10 +248,11 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // ── AI state ──────────────────────────────────────────────────────────────
-  const [aiQuestions, setAiQuestions] = useState<AiQuestion[]>([]);
+  const savedQuestions = (report.aiQuestions ?? []) as AiQuestion[];
+  const [aiQuestions, setAiQuestions] = useState<AiQuestion[]>(savedQuestions);
   const [aiQuestionsLoading, setAiQuestionsLoading] = useState(false);
   const [aiQuestionsError, setAiQuestionsError] = useState<string | null>(null);
-  const [aiQuestionsLoaded, setAiQuestionsLoaded] = useState(false);
+  const [aiQuestionsLoaded, setAiQuestionsLoaded] = useState(savedQuestions.length > 0);
 
   const [photoAnalyses, setPhotoAnalyses] = useState<Record<string, PhotoAnalysis>>({});
 
@@ -344,11 +345,18 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
       `Already asked (do not repeat): ${existingQs}`,
     ].filter(Boolean).join('. ');
     const res = await aiApi.questions(context || 'General vehicle incident');
-    // Only surface the error if AI produced no questions at all
     setAiQuestionsError(!res.aiUsed && (res.result ?? []).length === 0 ? (res.error ?? null) : null);
-    setAiQuestions(res.result ?? []);
+    const questions = res.result ?? [];
+    setAiQuestions(questions);
     setAiQuestionsLoading(false);
     setAiQuestionsLoaded(true);
+    // Persist questions to DB so they don't need to be re-fetched
+    if (questions.length > 0 && !readonly) {
+      apiFetch(`/api/reports/${currentReport.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ aiQuestions: questions }),
+      }).catch(() => { /* best-effort */ });
+    }
   };
 
   const handleAnalyzePhoto = async (evidenceLabel: string, file: UploadedFile) => {
@@ -530,7 +538,12 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
     try {
       const response = await apiFetch(`/api/reports/${currentReport.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ ...currentReport, status: currentReport.status || 'Draft' }),
+        body: JSON.stringify({
+          ...currentReport,
+          status: currentReport.status || 'Draft',
+          photoUrls: buildPhotoUrls(itemFiles),
+          interviewAnswers,
+        }),
       });
       if (response.ok) {
         const data = await response.json();
@@ -547,7 +560,12 @@ export default function ReportDashboard({ report, onBack, onReportUpdated, onDel
     try {
       const response = await apiFetch(`/api/reports/${currentReport.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ ...currentReport, status: 'Completed' }),
+        body: JSON.stringify({
+          ...currentReport,
+          status: 'Completed',
+          photoUrls: buildPhotoUrls(itemFiles),
+          interviewAnswers,
+        }),
       });
       if (response.ok) {
         const data = await response.json();

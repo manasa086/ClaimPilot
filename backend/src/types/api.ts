@@ -7,6 +7,13 @@ export interface StoredPhoto {
   isImage: boolean;
 }
 
+export interface AiQuestion {
+  id: string;
+  question: string;
+  impact: 'High' | 'Medium' | 'Low';
+  type: 'yesno' | 'text';
+}
+
 export interface IncidentReport {
   id: string;
   title: string;
@@ -21,4 +28,6 @@ export interface IncidentReport {
   incidentType?: string;
   description?: string;
   photoUrls?: StoredPhoto[];
+  interviewAnswers?: Record<string, string>;
+  aiQuestions?: AiQuestion[];
 }
