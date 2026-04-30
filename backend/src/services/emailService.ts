@@ -97,6 +97,12 @@ function buildRequestEmail(username: string, reason: string, approveUrl: string,
 }
 
 function buildApprovalEmail(frontendUrl: string, userEmail: string) {
+  const mailtoSubject = encodeURIComponent('Your ClaimPilot access has been approved');
+  const mailtoBody = encodeURIComponent(
+    `Hi,\n\nYour access to ClaimPilot has been approved!\n\nYou can now sign in using the email and password you registered with:\n${frontendUrl}\n\nWelcome aboard!\n\nClaimPilot Team`
+  );
+  const mailtoLink = `mailto:${userEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
+
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f8fbff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -115,20 +121,22 @@ function buildApprovalEmail(frontendUrl: string, userEmail: string) {
           </tr></table>
         </td></tr>
         <tr><td style="padding:32px;">
-          <div style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:#dcfce7;font-size:1.4rem;margin-bottom:16px;">✓</div>
-          <h2 style="margin:0 0 6px;font-size:1.1rem;color:#0f172a;">Access approved — please forward to user</h2>
-          <p style="margin:0 0 20px;font-size:0.85rem;color:#64748b;">You approved the request below. Forward the message at the bottom to the user.</p>
+          <div style="width:52px;height:52px;border-radius:50%;background:#dcfce7;display:inline-flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:16px;">✓</div>
+          <h2 style="margin:0 0 6px;font-size:1.1rem;color:#0f172a;">Access approved</h2>
+          <p style="margin:0 0 24px;font-size:0.85rem;color:#64748b;">You approved access for the user below. Click the button to notify them — it will open your email client with a pre-filled message.</p>
+
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fbff;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:24px;">
             <tr><td style="padding:14px 18px;">
-              <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:4px;">User email</div>
+              <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:4px;">Approved user</div>
               <div style="font-size:0.95rem;font-weight:700;color:#0f172a;">${escapeHtml(userEmail)}</div>
             </td></tr>
           </table>
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px 20px;">
-            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:#16a34a;margin-bottom:10px;font-weight:700;">Forward this to ${escapeHtml(userEmail)}</div>
-            <p style="margin:0 0 10px;font-size:0.88rem;color:#374151;line-height:1.6;">Hi,<br><br>Your access to ClaimPilot has been approved! You can now sign in using the email and password you registered with.</p>
-            <a href="${frontendUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:11px 24px;border-radius:10px;font-weight:700;font-size:0.85rem;">Sign in to ClaimPilot →</a>
-          </div>
+
+          <a href="${mailtoLink}" style="display:block;background:#16a34a;color:#fff;text-decoration:none;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-size:0.95rem;">
+            Send approval email to ${escapeHtml(userEmail)} →
+          </a>
+
+          <p style="margin:16px 0 0;font-size:0.75rem;color:#94a3b8;text-align:center;">Clicking opens your email client with a pre-filled message ready to send.</p>
         </td></tr>
         <tr><td style="background:#f1f5f9;padding:16px 32px;text-align:center;border-top:1px solid #e2e8f0;">
           <p style="margin:0;font-size:0.72rem;color:#94a3b8;">ClaimPilot · Claims intelligence for accident recovery</p>
