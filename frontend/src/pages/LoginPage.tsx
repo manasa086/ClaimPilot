@@ -214,27 +214,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       {showSignup && <SignupModal onClose={() => setShowSignup(false)} />}
 
       <div style={{ maxWidth: 420, margin: '48px auto', padding: '0 16px' }}>
-        {/* Restricted access notice */}
-        <div style={{
-          background: '#fff7ed',
-          border: '1px solid #fed7aa',
-          borderRadius: 12,
-          padding: '14px 18px',
-          marginBottom: 28,
-          fontSize: '0.83rem',
-          color: '#92400e',
-          lineHeight: 1.6,
-        }}>
-          <strong>Restricted access.</strong> This application is private. If you need access, please email{' '}
-          <a
-            href="mailto:manasa.somisetty12@gmail.com"
-            style={{ color: '#b45309', fontWeight: 600 }}
-          >
-            manasa.somisetty12@gmail.com
-          </a>
-          .
-        </div>
-
         {/* Login card */}
         <div className="card" style={{ padding: '32px 32px 28px', borderRadius: 20 }}>
           <div style={{ marginBottom: 24, textAlign: 'center' }}>

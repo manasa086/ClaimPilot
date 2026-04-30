@@ -147,8 +147,9 @@ router.post('/signup-request', async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('[Auth] signup-request error:', (err as any)?.message);
-    res.status(500).json({ error: 'Failed to save request. Please try again.' });
+    const msg = (err as any)?.message ?? 'Unknown error';
+    console.error('[Auth] signup-request error:', msg);
+    res.status(500).json({ error: msg });
   }
 });
 
