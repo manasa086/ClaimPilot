@@ -19,15 +19,25 @@ function readinessColor(score: number) {
   return '#dc2626';
 }
 
+const TOTAL_EVIDENCE_ITEMS = 6; // must match defaultEvidence in ReportDashboard
+const STATIC_QUESTION_COUNT = 7; // must match interviewQuestions in ReportDashboard
+
 function computeReadiness(report: IncidentReport) {
+  // Fields (25%) — same 6 core fields
   const coreFields = ['title', 'vehicle', 'platformStatus', 'location', 'incidentType', 'description'] as const;
   const filledFields = coreFields.filter((f) => (report[f] as string | undefined)?.trim()).length;
   const fieldScore = (filledFields / coreFields.length) * 25;
 
-  const hasPhotos = (report.photoUrls?.length ?? 0) > 0;
-  const evidenceScore = hasPhotos ? 60 : 0;
+  // Evidence (60%) — count distinct evidence labels present in photoUrls
+  const completedLabels = new Set((report.photoUrls ?? []).map((p) => p.evidenceLabel)).size;
+  const evidenceScore = (completedLabels / TOTAL_EVIDENCE_ITEMS) * 60;
 
-  const score = Math.round(fieldScore + evidenceScore);
+  // Interview (15%) — use stored interviewAnswers and aiQuestions
+  const answeredCount = Object.keys(report.interviewAnswers ?? {}).length;
+  const totalQuestions = STATIC_QUESTION_COUNT + (report.aiQuestions?.length ?? 0);
+  const interviewScore = totalQuestions > 0 ? Math.min(answeredCount / totalQuestions, 1) * 15 : 0;
+
+  const score = Math.min(100, Math.round(fieldScore + evidenceScore + interviewScore));
 
   const missing: string[] = [];
   if (!report.title?.trim()) missing.push('Incident title');
@@ -36,7 +46,7 @@ function computeReadiness(report: IncidentReport) {
   if (!report.location?.trim()) missing.push('Incident location');
   if (!report.incidentType?.trim()) missing.push('Incident type');
   if (!report.description?.trim()) missing.push('Incident description');
-  if (!hasPhotos) missing.push('Photos / Evidence');
+  if (completedLabels === 0) missing.push('Photos / Evidence');
 
   return { score, missing };
 }
