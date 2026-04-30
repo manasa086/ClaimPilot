@@ -35,12 +35,13 @@ export async function sendSignupRequestEmail({
 
 export async function sendApprovalEmail(userEmail: string) {
   const frontendUrl = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '');
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'manasa.somisetty12@gmail.com';
 
   await getClient().emails.send({
     from: 'ClaimPilot <onboarding@resend.dev>',
-    to: userEmail,
-    subject: 'Your ClaimPilot access has been approved',
-    html: buildApprovalEmail(frontendUrl),
+    to: adminEmail,
+    subject: `Action needed: Forward approval to ${userEmail}`,
+    html: buildApprovalEmail(frontendUrl, userEmail),
   });
 }
 
@@ -95,7 +96,7 @@ function buildRequestEmail(username: string, reason: string, approveUrl: string,
 </body></html>`;
 }
 
-function buildApprovalEmail(frontendUrl: string) {
+function buildApprovalEmail(frontendUrl: string, userEmail: string) {
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f8fbff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -113,11 +114,21 @@ function buildApprovalEmail(frontendUrl: string) {
             </td>
           </tr></table>
         </td></tr>
-        <tr><td style="padding:40px 32px;text-align:center;">
-          <div style="width:56px;height:56px;border-radius:50%;background:#dcfce7;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:20px;">✓</div>
-          <h2 style="margin:0 0 10px;font-size:1.15rem;color:#0f172a;">Your access has been approved!</h2>
-          <p style="margin:0 0 28px;font-size:0.88rem;color:#64748b;line-height:1.6;">You now have access to ClaimPilot. Sign in with the email and password you registered with.</p>
-          <a href="${frontendUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:13px 32px;border-radius:10px;font-weight:700;font-size:0.9rem;">Sign in to ClaimPilot →</a>
+        <tr><td style="padding:32px;">
+          <div style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:#dcfce7;font-size:1.4rem;margin-bottom:16px;">✓</div>
+          <h2 style="margin:0 0 6px;font-size:1.1rem;color:#0f172a;">Access approved — please forward to user</h2>
+          <p style="margin:0 0 20px;font-size:0.85rem;color:#64748b;">You approved the request below. Forward the message at the bottom to the user.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fbff;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:24px;">
+            <tr><td style="padding:14px 18px;">
+              <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;margin-bottom:4px;">User email</div>
+              <div style="font-size:0.95rem;font-weight:700;color:#0f172a;">${escapeHtml(userEmail)}</div>
+            </td></tr>
+          </table>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px 20px;">
+            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:#16a34a;margin-bottom:10px;font-weight:700;">Forward this to ${escapeHtml(userEmail)}</div>
+            <p style="margin:0 0 10px;font-size:0.88rem;color:#374151;line-height:1.6;">Hi,<br><br>Your access to ClaimPilot has been approved! You can now sign in using the email and password you registered with.</p>
+            <a href="${frontendUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:11px 24px;border-radius:10px;font-weight:700;font-size:0.85rem;">Sign in to ClaimPilot →</a>
+          </div>
         </td></tr>
         <tr><td style="background:#f1f5f9;padding:16px 32px;text-align:center;border-top:1px solid #e2e8f0;">
           <p style="margin:0;font-size:0.72rem;color:#94a3b8;">ClaimPilot · Claims intelligence for accident recovery</p>
