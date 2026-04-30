@@ -1,7 +1,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import { pool } from '../db.js';
-import { sendSignupRequestEmail } from '../services/emailService.js';
+import { sendSignupRequestEmail, sendApprovalEmail } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -189,7 +189,11 @@ router.get('/signup-request/:id/approve', async (req, res) => {
       [id],
     );
 
-    res.send(actionPage('Access approved', `<strong>${escapeHtml(req_.username)}</strong> has been added to the authorized users list and can now sign in.`, '#16a34a'));
+    // Notify the user — don't block the response if it fails
+    sendApprovalEmail(req_.username)
+      .catch((err) => console.error('[Auth] Failed to send approval email:', err?.message));
+
+    res.send(actionPage('Access approved', `<strong>${escapeHtml(req_.username)}</strong> has been added to the authorized users list and will receive a confirmation email.`, '#16a34a'));
   } catch (err) {
     console.error('[Auth] approve error:', (err as any)?.message);
     res.status(500).send(actionPage('Error', 'Something went wrong. Please try again.', '#dc2626'));

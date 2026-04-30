@@ -104,13 +104,13 @@ function SignupModal({ onClose }: { onClose: () => void }) {
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>User ID</label>
+                <label style={labelStyle}>Email</label>
                 <input
-                  type="text"
+                  type="email"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
-                  placeholder="Choose a username"
-                  autoComplete="username"
+                  placeholder="your@email.com"
+                  autoComplete="email"
                   required
                   style={inputStyle}
                 />
