@@ -67,6 +67,19 @@ CREATE TABLE IF NOT EXISTS incident_reports_dummy (
   updated_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- ── Signup requests (access requests from the login page) ────────────────────
+CREATE TABLE IF NOT EXISTS signup_requests (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username      TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  reason        TEXT NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'pending',  -- pending | approved | rejected
+  action_token  TEXT NOT NULL,
+  requested_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  reviewed_at   TIMESTAMP WITH TIME ZONE
+);
+CREATE INDEX IF NOT EXISTS signup_requests_status_idx ON signup_requests (status);
+
 -- ── One-time data migration ───────────────────────────────────────────────────
 -- Copies current live records into the dummy table (idempotent).
 -- Run this ONCE after creating the dummy table. After that, manage demo
